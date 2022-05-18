@@ -1,0 +1,5 @@
+name: CoinSystem
+main: com.davidout.CoinSystem.CoinAPI
+author: David Out
+version: 1.0
+description: An easy to use coinsystem.
