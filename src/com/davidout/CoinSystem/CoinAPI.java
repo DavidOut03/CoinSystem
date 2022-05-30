@@ -11,9 +11,14 @@ import java.util.UUID;
 public class CoinAPI extends JavaPlugin {
 
     private static CoinAPI instance;
+    private static Database database;
 
     public static CoinAPI getInstance() {
         return instance;
+    }
+
+    public Database getMySQLDatabase() {
+        return database;
     }
 
 
@@ -24,14 +29,25 @@ public class CoinAPI extends JavaPlugin {
         instance = this;
         Config = new Config();
 
+
+
         Bukkit.getPluginManager().registerEvents(new Events(), this);
+        getCommand("coins").setExecutor(new CMD());
         Bukkit.getConsoleSender().sendMessage(ChatColor.GREEN + "Coinsystem initialized.");
+
+        database = new Database(MYSQLUser.host, 3306, MYSQLUser.databaseName, MYSQLUser.username, MYSQLUser.password);
+        database.connect();
+        if(database.isConnected()) {
+            database.createTable("coins", "(UUID VARCHAR(100), COINS INT(100), PRIMARY KEY (UUID)");
+        }
 
         if (Bukkit.getOnlinePlayers().size() > 0) {
             for (Player p : Bukkit.getOnlinePlayers()) {
                 Config.loadPlayer(p.getUniqueId());
             }
         }
+
+
     }
 
     @Override
@@ -41,6 +57,10 @@ public class CoinAPI extends JavaPlugin {
                 this.Config.savePlayer(uuid);
             }
             Bukkit.getConsoleSender().sendMessage(ChatColor.GREEN + "{CoinSystem} saved players coins to the database.");
+        }
+
+        if(database != null) {
+            database.disconnect();
         }
     }
 
