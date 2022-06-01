@@ -83,7 +83,7 @@ public class CoinAPI extends JavaPlugin {
 
     public static int getCoins(UUID uuid) {
         if (coins.get(uuid) == null) {
-            return CoinAPI.getInstance().Config.getCoinsFromConfig(uuid);
+            return com.davidout.CoinSystem.Config.getConfig().loadPlayer(uuid);
         }
 
         return coins.get(uuid);

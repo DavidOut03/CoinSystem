@@ -29,7 +29,7 @@ public class Events implements Listener {
 //    @EventHandler
 //    public  void onClick(PlayerInteractEvent e) {
 //        if(e.getClickedBlock() != null) {
-//            CoinAPI.addCoins(e.getPlayer().getUniqueId(), 1);
+//            CoinAPI.addCoins(e.getPlayer().getUniqueId(), 1000);
 //            e.getPlayer().sendMessage(ChatColor.GREEN + "You received 1 coin. " + CoinAPI.getCoins(e.getPlayer().getUniqueId()));
 //        }
 //    }

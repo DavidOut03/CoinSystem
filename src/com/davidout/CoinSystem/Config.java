@@ -41,7 +41,7 @@ public class Config {
             return 0;
         }
     }
-    public void loadPlayer(UUID uuid) {
+    public int loadPlayer(UUID uuid) {
         int coins = 0;
 
         if(CoinAPI.getInstance().getMySQLDatabase() != null && CoinAPI.getInstance().getMySQLDatabase().isConnected()) {
@@ -55,8 +55,6 @@ public class Config {
             } catch (Exception ex) {
                 Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while getting " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
             }
-
-            return;
         } else {
             if(yaml.get("Player." + uuid) != null) {
                 try {
@@ -67,11 +65,8 @@ public class Config {
             }
         }
 
-        if (coins == 0) {
-            CoinAPI.setCoins(uuid, 0);
-            return;
-        }
         CoinAPI.setCoins(uuid, coins);
+        return coins;
     }
 
     public void savePlayer(UUID uuid) {
@@ -99,14 +94,16 @@ public class Config {
                 Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while saving " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
                 return;
             }
+        } else {
+            try {
+                yaml.set("Player." + uuid.toString(), CoinAPI.getCoins(uuid));
+                yaml.save(file);
+            } catch (Exception ex) {
+                Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while saving " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
+            }
         }
 
-        try {
-            yaml.set("Player." + uuid.toString(), CoinAPI.getCoins(uuid));
-            yaml.save(file);
-        } catch (Exception ex) {
-            Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while saving " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
-        }
+
 
         CoinAPI.deleteAccount(uuid);
     }
