@@ -29,4 +29,5 @@ bin/
 .DS_Store
 
 ### Classified info ###
-MYSQLUser.java!/src/com/davidout/CoinSystem/MYSQLUser.java
+MYSQLUser.java
+!/src/com/davidout/CoinSystem/MYSQLUser.java

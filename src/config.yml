@@ -1,0 +1,7 @@
+database:
+  sql:
+    enabled: false
+    database: "development"
+    host: "localhost"
+    username: "admin"
+    password: "admin"

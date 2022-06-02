@@ -33,12 +33,25 @@ public class CoinAPI extends JavaPlugin {
 
         Bukkit.getPluginManager().registerEvents(new Events(), this);
         getCommand("coins").setExecutor(new CMD());
-        Bukkit.getConsoleSender().sendMessage(ChatColor.GREEN + "Coinsystem initialized.");
 
-        database = new Database(MYSQLUser.host, 3306, MYSQLUser.databaseName, MYSQLUser.username, MYSQLUser.password);
-        database.connect();
-        if(database.isConnected()) {
-            database.createTable("coins", "(UUID VARCHAR(100), COINS INT(100), PRIMARY KEY (UUID)");
+        saveDefaultConfig();
+
+
+
+        if(getConfig().getBoolean("database.sql.enabled")) {
+            Bukkit.getConsoleSender().sendMessage(getConfig().getBoolean("database.sql.enabled") + "" + " starting database");
+            String host = getConfig().getString("database.sql.host");
+            String databaseName = getConfig().getString("database.sql.database");
+            String username = getConfig().getString("database.sql.username");
+            String password = getConfig().getString("database.sql.password");
+
+            if(host == null || databaseName == null || username == null || password == null) return;
+
+            database = new Database(host, 3306, databaseName, username, password);
+            database.connect();
+            if(database.isConnected()) {
+                database.createTable("coins", "(UUID VARCHAR(100), COINS INT(100), PRIMARY KEY (UUID)");
+            }
         }
 
         if (Bukkit.getOnlinePlayers().size() > 0) {
