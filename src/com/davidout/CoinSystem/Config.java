@@ -89,6 +89,7 @@ public class Config {
                 ps3.setString(2, uuid.toString());
                 ps3.executeUpdate();
 
+                CoinAPI.deleteAccount(uuid);
                 return;
             } catch (Exception ex) {
                 Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while saving " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
@@ -98,14 +99,11 @@ public class Config {
             try {
                 yaml.set("Player." + uuid.toString(), CoinAPI.getCoins(uuid));
                 yaml.save(file);
+                CoinAPI.deleteAccount(uuid);
             } catch (Exception ex) {
                 Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while saving " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
             }
         }
-
-
-
-        CoinAPI.deleteAccount(uuid);
     }
 }
 
