@@ -3,10 +3,7 @@ package com.davidout.CoinSystem;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
+import java.sql.*;
 
 public class Database {
 
@@ -87,6 +84,53 @@ public class Database {
             return false;
         }
     }
+
+    public ResultSet query(String query, Object... args) {
+        if(this.connection == null) return null;
+
+        try {
+            PreparedStatement ps = connection.prepareStatement(query);
+            for (int i = 0; i < args.length; i++) {
+                ps.setObject(i + 1, args[i]);
+            }
+            return ps.executeQuery();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public void update(String query, Object... args) {
+        if(this.connection == null) return;
+
+        try {
+            PreparedStatement ps = connection.prepareStatement(query);
+            for (int i = 0; i < args.length; i++) {
+                ps.setObject(i + 1, args[i]);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public void asyncUpdate(String query, Object... args) {
+        Bukkit.getScheduler().runTaskAsynchronously(CoinAPI.getInstance(), new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    PreparedStatement statement = connection.prepareStatement(query);
+                    for (int i = 0; i < args.length; i++) {
+                        statement.setObject(i + 1, args[i]);
+                    }
+                    statement.executeUpdate();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+    }
+
 
     public boolean dataExists(String table, String primaryKey, String primaryKeyValue) {
         try {

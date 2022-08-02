@@ -45,55 +45,45 @@ public class Config {
         int coins = 0;
 
         if(CoinAPI.getInstance().getMySQLDatabase() != null && CoinAPI.getInstance().getMySQLDatabase().isConnected()) {
-            try {
-                PreparedStatement ps = CoinAPI.getInstance().getMySQLDatabase().getConnection().prepareStatement("SELECT COINS FROM coins WHERE UUID=?");
-                ps.setString(1, uuid.toString());
-                ResultSet result = ps.executeQuery();
-                if(result.next()) {
-                    coins = result.getInt("COINS");
+            Bukkit.getScheduler().runTaskAsynchronously(CoinAPI.getInstance(), new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        ResultSet result = CoinAPI.getInstance().getMySQLDatabase().query("SELECT COINS FROM coins WHERE UUID=?", uuid.toString());
+                        result.next();
+                        CoinAPI.setCoins(uuid, result.getInt("COINS"));
+                    } catch (Exception ex) {
+                        Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while getting " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
+                    }
                 }
-            } catch (Exception ex) {
-                Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while getting " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
-            }
+            });
         } else {
             if(yaml.get("Player." + uuid) != null) {
                 try {
                     coins = yaml.getInt("Player." + uuid.toString());
+                    CoinAPI.setCoins(uuid, coins);
                 } catch (Exception ex) {
                     Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while getting " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
                 }
             }
         }
-
-        CoinAPI.setCoins(uuid, coins);
         return coins;
     }
 
     public void savePlayer(UUID uuid) {
         if(CoinAPI.getInstance().getMySQLDatabase() != null && CoinAPI.getInstance().getMySQLDatabase().isConnected()) {
             try {
-                PreparedStatement ps = CoinAPI.getInstance().getMySQLDatabase().getConnection().prepareStatement("SELECT * FROM coins WHERE UUID=?");
-                ps.setString(1, uuid.toString());
-                ResultSet results = ps.executeQuery();
+                ResultSet results = CoinAPI.getInstance().getMySQLDatabase().query("SELECT * FROM coins WHERE UUID=?", uuid.toString());
                 results.next();
 
                 if(!CoinAPI.getInstance().getMySQLDatabase().dataExists("coins", "UUID", uuid.toString()) ) {
-                    PreparedStatement ps2 = CoinAPI.getInstance().getMySQLDatabase().getConnection().prepareStatement("INSERT IGNORE INTO coins"
-                    + " (UUID) VALUES (?)");
-                    ps2.setString(1, uuid.toString());
-                    ps2.executeUpdate();
+                    CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("INSERT IGNORE INTO coins (UUID) VALUES (?)", uuid.toString());
                 }
 
-                PreparedStatement ps3 = CoinAPI.getInstance().getMySQLDatabase().getConnection().prepareStatement("UPDATE coins SET COINS=? WHERE UUID=?");
-                ps3.setInt(1, CoinAPI.getCoins(uuid));
-                ps3.setString(2, uuid.toString());
-                ps3.executeUpdate();
-
+                CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("UPDATE coins SET COINS=? WHERE UUID=?", CoinAPI.getCoins(uuid), uuid.toString());
                 CoinAPI.deleteAccount(uuid);
-                return;
             } catch (Exception ex) {
                 Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while saving " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
-                return;
             }
         } else {
             try {

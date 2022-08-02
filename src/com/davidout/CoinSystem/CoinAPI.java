@@ -57,11 +57,11 @@ public class CoinAPI extends JavaPlugin {
             }
         }
 
-        if (Bukkit.getOnlinePlayers().size() > 0) {
-            for (Player p : Bukkit.getOnlinePlayers()) {
-                Config.loadPlayer(p.getUniqueId());
-            }
-        }
+//        if (Bukkit.getOnlinePlayers().size() > 0) {
+//            for (Player p : Bukkit.getOnlinePlayers()) {
+//                Config.loadPlayer(p.getUniqueId());
+//            }
+//        }
 
 
     }
@@ -72,14 +72,14 @@ public class CoinAPI extends JavaPlugin {
             database.disconnect();
         }
 
-        if(coins == null) return;
-        if(coins.isEmpty()) return;
-
-            for (UUID uuid : coins.keySet()) {
-                Config.savePlayer(uuid);
-            }
-
-            Bukkit.getConsoleSender().sendMessage(ChatColor.GREEN + "{CoinSystem} saved players coins to the database.");
+//        if(coins == null) return;
+//        if(coins.isEmpty()) return;
+//
+//            for (UUID uuid : coins.keySet()) {
+//                Config.savePlayer(uuid);
+//            }
+//
+//            Bukkit.getConsoleSender().sendMessage(ChatColor.GREEN + "{CoinSystem} saved players coins to the database.");
     }
 
     public static HashMap<UUID, Integer> coins = new HashMap<UUID, Integer>();
@@ -122,22 +122,14 @@ public class CoinAPI extends JavaPlugin {
     private static void updateInDatabase(UUID uuid) {
         if(CoinAPI.getInstance().getMySQLDatabase() == null || !CoinAPI.getInstance().getMySQLDatabase().isConnected()) return;
         try {
-            PreparedStatement ps = CoinAPI.getInstance().getMySQLDatabase().getConnection().prepareStatement("SELECT * FROM coins WHERE UUID=?");
-            ps.setString(1, uuid.toString());
-            ResultSet results = ps.executeQuery();
+            ResultSet results = CoinAPI.getInstance().getMySQLDatabase().query("SELECT * FROM coins WHERE UUID=?", uuid.toString());
             results.next();
 
             if(!CoinAPI.getInstance().getMySQLDatabase().dataExists("coins", "UUID", uuid.toString()) ) {
-                PreparedStatement ps2 = CoinAPI.getInstance().getMySQLDatabase().getConnection().prepareStatement("INSERT IGNORE INTO coins"
-                        + " (UUID) VALUES (?)");
-                ps2.setString(1, uuid.toString());
-                ps2.executeUpdate();
+                CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("INSERT IGNORE INTO coins (UUID) VALUES (?)", uuid.toString());
             }
 
-            PreparedStatement ps3 = CoinAPI.getInstance().getMySQLDatabase().getConnection().prepareStatement("UPDATE coins SET COINS=? WHERE UUID=?");
-            ps3.setInt(1, CoinAPI.getCoins(uuid));
-            ps3.setString(2, uuid.toString());
-            ps3.executeUpdate();
+            CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("UPDATE coins SET COINS=? WHERE UUID=?", CoinAPI.getCoins(uuid), uuid.toString());
         } catch (Exception ex) {
             Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while saving " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
         }
