@@ -20,22 +20,20 @@ public class CMD implements CommandExecutor, TabCompleter {
     private static String[] COMMANDS = { "set", "get", "reset", "add", "remove"};
     @Override
     public boolean onCommand(CommandSender commandSender, Command command, String s, String[] args) {
-        if(commandSender == null) return false;
-        Player p = (Player) commandSender;
-
-
         if(args.length == 0) {
             if(!(commandSender instanceof Player)) {
                 commandSender.sendMessage(ChatColor.RED + "Use: /coins [set,get,add,remove,reset] [playername] [amount]");
                 return true;
             }
 
-            p.sendMessage("§7You have §6" + CoinAPI.getCoins(p.getUniqueId()) + " §7coins.");
+            Player p = (Player) commandSender;
+            p.sendMessage(Chat.format("§7You have §6" + CoinAPI.getCoins(p.getUniqueId()) + " §7coins."));
             return true;
         }
 
-        if(commandSender instanceof  Player && !p.isOp() && !p.hasPermission("coinsystem.manage")) {
-                p.sendMessage("§7You have §6" + CoinAPI.getCoins(p.getUniqueId()) + " §7coins.");
+        if(commandSender instanceof  Player && !commandSender.isOp() && !commandSender.hasPermission("coinsystem.manage")) {
+            Player p = (Player) commandSender;
+                p.sendMessage(Chat.format("§7You have §6" + CoinAPI.getCoins(p.getUniqueId()) + " §7coins."));
                 return false;
         }
 
@@ -47,7 +45,7 @@ public class CMD implements CommandExecutor, TabCompleter {
             }
 
             if(args[0].equalsIgnoreCase("get")) {
-                commandSender.sendMessage("§e" + player.getName() + " &7has §6" + CoinAPI.getCoins(p.getUniqueId()) + " §7coins.");
+                commandSender.sendMessage(Chat.format("§e" + player.getName() + " &7has §6" + CoinAPI.getCoins(player.getUniqueId()) + " §7coins."));
                 return true;
             }
 
