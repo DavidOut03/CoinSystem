@@ -1,6 +1,7 @@
 package com.davidout.CoinSystem.data;
 
 import com.davidout.CoinSystem.CoinAPI;
+import com.davidout.CoinSystem.utils.Chat;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -9,98 +10,46 @@ import java.sql.*;
 
 public class Database {
 
-    private static Database database;
-    public static Database getInstance() {return database;}
+    public static Database getInstance() {return CoinAPI.getInstance().getMySQLDatabase();}
 
     private String host;
-    private String databaseName;
-    private int port;
-    private String user;
+    private String username;
     private String password;
-    private Connection connection;
+    private String databaseName;
 
-    public Database(String host, int port,  String databaseName, String user, String password) {
-        this.host = host;
-        this.port = port | 3306;
-        this.databaseName = databaseName;
-        this.user = user;
-        this.password = password;
-        database = this;
+    private Connection con;
+
+    public Connection getConnection() {
+        return this.con;
     }
 
-    public Connection getConnection() {return connection;}
-
-    public boolean isConnected() {
-        return (connection == null? false : true);
-    }
-
-    public boolean connect() {
-        if(isConnected()) {return true;}
+    public void connect() {
         try {
-            connection = DriverManager.getConnection("jdbc:mysql://" + host + ":" + port + "/" + databaseName + "?useSSL=false", user, password);
-            Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.GREEN + "Successfully connected to the database.");
-            return true;
-        } catch (Exception ex) {
-            Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.RED + "Could not connect to a database.");
-            return false;
+            long startTime = System.currentTimeMillis();
+            con = DriverManager.getConnection("jdbc:mysql://" + host + ":" + 3306 + "/" + databaseName + "?useSSL=false", username, password);
+
+            long endTime = System.currentTimeMillis();
+            Bukkit.getConsoleSender().sendMessage(Chat.format("&aSuccessfully connected to the database in " + (endTime - startTime) + " ms"));
+        } catch (SQLException e) {
+            Bukkit.getLogger().warning("Error while connecting to database");
+            e.printStackTrace();
         }
     }
 
-    public boolean disconnect() {
-        if(!isConnected()) {return true;}
-
+    public ResultSet query(String query, Object... args) {
+        boolean canContinue = checkConnection();
+        if(!canContinue) return null;
         try {
-            connection.close();
-            return true;
-        } catch (Exception ex) {
-            Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.RED + "There was an error while disconnecting from the mysql database.");
-            ex.printStackTrace();
-            return false;
-        }
-    }
-
-    public boolean createTable(String table, String mysqlData) {
-        PreparedStatement ps;
-//        (UUID VARCHAR(100), POINTS INT(100), PRIMARY KEY (UUID)
-        try {
-            ps = connection.prepareStatement("CREATE TABLE IF NOT EXISTS " + table + " " + mysqlData + ")");
-            ps.executeUpdate();
-            return true;
-        } catch (Exception ex) {
-            return false;
-        }
-    }
-
-    public boolean set(String table, String primaryKey, String primaryKeyValue, Object ...value) {
-        try {
-            PreparedStatement ps = connection.prepareStatement("SELECT * FROM " + table + " WHERE " + primaryKey + "=?");
-            ps.setString(1, primaryKeyValue);
-            ResultSet results = ps.executeQuery();
-            results.next();
-
-            PreparedStatement ps2 = connection.prepareStatement("INSERT IGNORE INFO " + table + " () VALUES ()");
-
-            return true;
-        } catch (Exception ex) {
-            return false;
-        }
-    }
-
-    private ResultSet query(String query, Object... args) {
-        if(this.connection == null) return null;
-
-        try {
-            PreparedStatement ps = connection.prepareStatement(query);
+            PreparedStatement ps = con.prepareStatement(query);
             for (int i = 0; i < args.length; i++) {
                 ps.setObject(i + 1, args[i]);
             }
             return ps.executeQuery();
-        } catch (Exception e) {
+        } catch (SQLException e) {
             e.printStackTrace();
             return null;
         }
     }
-
 
     public void asyncQuery(final Callback<ResultSet> callback, String query, Object... args) {
         boolean canContinue = checkConnection();
@@ -112,7 +61,7 @@ public class Database {
             public void run() {
 
                 try {
-                    PreparedStatement ps = connection.prepareStatement(query);
+                    PreparedStatement ps = con.prepareStatement(query);
                     for (int i = 0; i < args.length; i++) {
                         ps.setObject(i + 1, args[i]);
                     }
@@ -136,7 +85,7 @@ public class Database {
         try {
             boolean canContinue = checkConnection();
             if(!canContinue) return 0;
-            PreparedStatement ps = connection.prepareStatement(query);
+            PreparedStatement ps = con.prepareStatement(query);
             for (int i = 0; i < args.length; i++) {
                 ps.setObject(i + 1, args[i]);
             }
@@ -154,7 +103,7 @@ public class Database {
                 try {
                     boolean canContinue = checkConnection();
                     if(!canContinue) return;
-                    PreparedStatement ps = connection.prepareStatement(query);
+                    PreparedStatement ps = con.prepareStatement(query);
                     for (int i = 0; i < args.length; i++) {
                         ps.setObject(i + 1, args[i]);
                     }
@@ -166,8 +115,18 @@ public class Database {
         });
     }
 
-    public void playerInDatabase(Callback<ResultSet> callback, Player p, String databaseName) {
-        asyncQuery(callback, "SELECT * FROM " + databaseName + " WHERE UUID=?", p.getUniqueId().toString());
+    public boolean playerInDatabase(Player p, String databaseName) {
+        try {
+            PreparedStatement ps = getConnection().prepareStatement("SELECT * FROM " + databaseName + " WHERE UUID=?");
+            ps.setString(1, p.getUniqueId().toString());
+            ResultSet results = ps.executeQuery();
+            if(results.next()) {
+                return true;
+            }
+            return false;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
     /**
@@ -175,13 +134,13 @@ public class Database {
      */
 
     public boolean checkConnection() {
-        if(connection == null) {
+        if(con == null) {
             CoinAPI.getInstance().getLogger().warning("Cannot use 'con.isClosed()' in 'checkConnection()' because 'con' is null.");
             return false;
         }
 
         try {
-            if(connection.isClosed()) {
+            if(con.isClosed()) {
                 connect();
             }
             return true;
@@ -191,17 +150,35 @@ public class Database {
         }
     }
 
-
-
-    public boolean dataExists(String table, String primaryKey, String primaryKeyValue) {
+    public void disconnect() {
+        if (this.con == null)
+            return;
         try {
-            PreparedStatement ps = connection.prepareStatement("SELECT * FROM " + table + "WHERE " + primaryKey + "=?");
-            ps.setString(1, primaryKeyValue);
-            ResultSet results = ps.executeQuery();
-            return results.next();
-        } catch (Exception ex) {
-            return false;
+            con.close();
+        } catch (SQLException e) {
+            Bukkit.getLogger().warning("Error while disconnecting from database");
+            e.printStackTrace();
         }
+    }
 
+    public void setDatabaseName(String name) {
+        this.databaseName = name;
+    }
+    public void setHost(String host) {
+        this.host = host;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public boolean pluginIsConnected() {
+        return (this.con != null);
     }
 }
+
+

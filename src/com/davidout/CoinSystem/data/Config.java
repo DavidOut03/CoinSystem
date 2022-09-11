@@ -45,17 +45,13 @@ public class Config {
     public int loadPlayer(UUID uuid) {
         int coins = 0;
 
-        if(CoinAPI.getInstance().getMySQLDatabase() != null && CoinAPI.getInstance().getMySQLDatabase().isConnected()) {
 
+        if(CoinAPI.getInstance().getMySQLDatabase() != null && CoinAPI.getInstance().getMySQLDatabase().pluginIsConnected()) {
             Database.getInstance().asyncQuery(new Callback<ResultSet>() {
                 @Override
                 public void onSuccess(ResultSet result) throws SQLException {
-                    if(result == null || !result.next() || result.getString("COINS") == null || result.getInt("COINS") == 0) {
-                        CoinAPI.setCoins(uuid, 0);
-                        return;
-                    }
-
-                    CoinAPI.setCoins(uuid, result.getInt("COINS"));
+                    String coinsString = result.getString("COINS");
+                    if(CoinAPI.isNumber(coinsString))  CoinAPI.setCoins(uuid, Integer.parseInt(coinsString));
                 }
 
                 @Override
@@ -82,18 +78,11 @@ public class Config {
     }
 
     public void savePlayer(UUID uuid) {
-        if(CoinAPI.getInstance().getMySQLDatabase() != null && CoinAPI.getInstance().getMySQLDatabase().isConnected()) {
+        if(CoinAPI.getInstance().getMySQLDatabase() != null && CoinAPI.getInstance().getMySQLDatabase().pluginIsConnected()) {
             Database.getInstance().asyncQuery(new Callback<ResultSet>() {
                 @Override
                 public void onSuccess(ResultSet result) throws SQLException {
-                    if(result == null || !result.next()) {
-                        CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("INSERT IGNORE INTO coins (UUID,COINS) VALUES (?,?)", uuid.toString(), CoinAPI.getCoins(uuid));
-                        CoinAPI.deleteAccount(uuid);
-                        return;
-                    }
-
                     CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("UPDATE coins SET COINS=? WHERE UUID=?", CoinAPI.getCoins(uuid), uuid.toString());
-                    CoinAPI.deleteAccount(uuid);
                 }
 
                 @Override
@@ -104,9 +93,8 @@ public class Config {
                 @Override
                 public void onDataNotFound() {
                     CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("INSERT IGNORE INTO coins (UUID,COINS) VALUES (?,?)", uuid.toString(), CoinAPI.getCoins(uuid));
-                    CoinAPI.deleteAccount(uuid);
                 }
-            }, "SELECT * FROM coins WHERE UUID=?", uuid.toString());
+            }, "SELECT COINS FROM coins WHERE UUID=?", uuid.toString());
         } else {
             try {
                 yaml.set("Player." + uuid.toString(), CoinAPI.getCoins(uuid));

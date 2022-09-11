@@ -67,7 +67,7 @@ public class CMD implements CommandExecutor, TabCompleter {
                 return false;
             }
 
-            if(!isInteger(args[2])) {
+            if(!CoinAPI.isNumber(args[2])) {
                 commandSender.sendMessage(Chat.format("&c" + args[2] + " is not a number."));
                 return false;
             }
@@ -105,14 +105,7 @@ public class CMD implements CommandExecutor, TabCompleter {
         return false;
     }
 
-    public boolean isInteger(String s) {
-        try {
-            Integer.parseInt(s);
-            return true;
-        } catch (Exception ex) {
-            return false;
-        }
-    }
+
 
     @Override
     public List<String> onTabComplete(CommandSender commandSender, Command command, String s, String[] args) {
