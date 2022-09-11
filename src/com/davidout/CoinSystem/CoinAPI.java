@@ -1,12 +1,17 @@
 package com.davidout.CoinSystem;
 
+import com.davidout.CoinSystem.commands.CMD;
+import com.davidout.CoinSystem.data.Callback;
+import com.davidout.CoinSystem.data.Config;
+import com.davidout.CoinSystem.data.Database;
+import com.davidout.CoinSystem.events.Events;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -97,14 +102,15 @@ public class CoinAPI extends JavaPlugin {
         if (coins.get(uuid) == null) {
             coins.put(uuid, 0);
         }
-        coins.put(uuid, coins.get(uuid) - amount);
+        if(coins.get(uuid) < amount) return;
 
+        coins.put(uuid, coins.get(uuid) - amount);
         updateInDatabase(uuid);
     }
 
     public static int getCoins(UUID uuid) {
         if (coins.get(uuid) == null) {
-            return com.davidout.CoinSystem.Config.getConfig().loadPlayer(uuid);
+            return com.davidout.CoinSystem.data.Config.getConfig().loadPlayer(uuid);
         }
 
         return coins.get(uuid);
@@ -115,24 +121,35 @@ public class CoinAPI extends JavaPlugin {
     }
 
     public static void setCoins(UUID uuid, int amount) {
+        if(amount < 0) return;
         coins.put(uuid, amount);
         updateInDatabase(uuid);
     }
 
     private static void updateInDatabase(UUID uuid) {
         if(CoinAPI.getInstance().getMySQLDatabase() == null || !CoinAPI.getInstance().getMySQLDatabase().isConnected()) return;
-        try {
-            ResultSet results = CoinAPI.getInstance().getMySQLDatabase().query("SELECT * FROM coins WHERE UUID=?", uuid.toString());
-            results.next();
+        Database.getInstance().asyncQuery(new Callback<ResultSet>() {
+            @Override
+            public void onSuccess(ResultSet result) throws SQLException {
+                if(result == null || !result.next()) {
+                    CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("INSERT IGNORE INTO coins (UUID,COINS) VALUES (?,?)", uuid.toString(), CoinAPI.getCoins(uuid));
+                    return;
+                }
 
-            if(!CoinAPI.getInstance().getMySQLDatabase().dataExists("coins", "UUID", uuid.toString()) ) {
-                CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("INSERT IGNORE INTO coins (UUID) VALUES (?)", uuid.toString());
+                CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("UPDATE coins SET COINS=? WHERE UUID=?", CoinAPI.getCoins(uuid), uuid.toString());
             }
 
-            CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("UPDATE coins SET COINS=? WHERE UUID=?", CoinAPI.getCoins(uuid), uuid.toString());
-        } catch (Exception ex) {
-            Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while saving " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
-        }
+            @Override
+            public void onException(Throwable cause) {
+                Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while saving " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: ");
+            }
+
+            @Override
+            public void onDataNotFound() {
+                CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("INSERT IGNORE INTO coins (UUID,COINS) VALUES (?,?)", uuid.toString(), CoinAPI.getCoins(uuid));
+            }
+        }, "SELECT * FROM coins WHERE UUID=?", uuid.toString());
+
     }
 
 

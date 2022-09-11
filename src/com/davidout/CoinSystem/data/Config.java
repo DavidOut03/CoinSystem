@@ -1,12 +1,13 @@
-package com.davidout.CoinSystem;
+package com.davidout.CoinSystem.data;
 
+import com.davidout.CoinSystem.CoinAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.configuration.file.YamlConfiguration;
 
 import java.io.File;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.UUID;
 
 public class Config {
@@ -45,18 +46,28 @@ public class Config {
         int coins = 0;
 
         if(CoinAPI.getInstance().getMySQLDatabase() != null && CoinAPI.getInstance().getMySQLDatabase().isConnected()) {
-            Bukkit.getScheduler().runTaskAsynchronously(CoinAPI.getInstance(), new Runnable() {
+
+            Database.getInstance().asyncQuery(new Callback<ResultSet>() {
                 @Override
-                public void run() {
-                    try {
-                        ResultSet result = CoinAPI.getInstance().getMySQLDatabase().query("SELECT COINS FROM coins WHERE UUID=?", uuid.toString());
-                        result.next();
-                        CoinAPI.setCoins(uuid, result.getInt("COINS"));
-                    } catch (Exception ex) {
-                        Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while getting " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
+                public void onSuccess(ResultSet result) throws SQLException {
+                    if(result == null || !result.next() || result.getString("COINS") == null || result.getInt("COINS") == 0) {
+                        CoinAPI.setCoins(uuid, 0);
+                        return;
                     }
+
+                    CoinAPI.setCoins(uuid, result.getInt("COINS"));
                 }
-            });
+
+                @Override
+                public void onException(Throwable cause) {
+                    Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while getting " + Bukkit.getOfflinePlayer(uuid).getName() + " coins.");
+                }
+
+                @Override
+                public void onDataNotFound() {
+                    CoinAPI.setCoins(uuid, 0);
+                }
+            }, "SELECT COINS FROM coins WHERE UUID=?", uuid.toString());
         } else {
             if(yaml.get("Player." + uuid) != null) {
                 try {
@@ -72,19 +83,30 @@ public class Config {
 
     public void savePlayer(UUID uuid) {
         if(CoinAPI.getInstance().getMySQLDatabase() != null && CoinAPI.getInstance().getMySQLDatabase().isConnected()) {
-            try {
-                ResultSet results = CoinAPI.getInstance().getMySQLDatabase().query("SELECT * FROM coins WHERE UUID=?", uuid.toString());
-                results.next();
+            Database.getInstance().asyncQuery(new Callback<ResultSet>() {
+                @Override
+                public void onSuccess(ResultSet result) throws SQLException {
+                    if(result == null || !result.next()) {
+                        CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("INSERT IGNORE INTO coins (UUID,COINS) VALUES (?,?)", uuid.toString(), CoinAPI.getCoins(uuid));
+                        CoinAPI.deleteAccount(uuid);
+                        return;
+                    }
 
-                if(!CoinAPI.getInstance().getMySQLDatabase().dataExists("coins", "UUID", uuid.toString()) ) {
-                    CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("INSERT IGNORE INTO coins (UUID) VALUES (?)", uuid.toString());
+                    CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("UPDATE coins SET COINS=? WHERE UUID=?", CoinAPI.getCoins(uuid), uuid.toString());
+                    CoinAPI.deleteAccount(uuid);
                 }
 
-                CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("UPDATE coins SET COINS=? WHERE UUID=?", CoinAPI.getCoins(uuid), uuid.toString());
-                CoinAPI.deleteAccount(uuid);
-            } catch (Exception ex) {
-                Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while saving " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ERROR: " + ex.getMessage());
-            }
+                @Override
+                public void onException(Throwable cause) {
+                    Bukkit.getConsoleSender().sendMessage(ChatColor.RED + "There was an error while saving " + Bukkit.getOfflinePlayer(uuid).getName() + " coins. ");
+                }
+
+                @Override
+                public void onDataNotFound() {
+                    CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("INSERT IGNORE INTO coins (UUID,COINS) VALUES (?,?)", uuid.toString(), CoinAPI.getCoins(uuid));
+                    CoinAPI.deleteAccount(uuid);
+                }
+            }, "SELECT * FROM coins WHERE UUID=?", uuid.toString());
         } else {
             try {
                 yaml.set("Player." + uuid.toString(), CoinAPI.getCoins(uuid));

@@ -1,7 +1,9 @@
-package com.davidout.CoinSystem;
+package com.davidout.CoinSystem.data;
 
+import com.davidout.CoinSystem.CoinAPI;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
 
 import java.sql.*;
 
@@ -34,7 +36,6 @@ public class Database {
 
     public boolean connect() {
         if(isConnected()) {return true;}
-
         try {
             connection = DriverManager.getConnection("jdbc:mysql://" + host + ":" + port + "/" + databaseName + "?useSSL=false", user, password);
             Bukkit.getServer().getConsoleSender().sendMessage(ChatColor.GREEN + "Successfully connected to the database.");
@@ -85,7 +86,7 @@ public class Database {
         }
     }
 
-    public ResultSet query(String query, Object... args) {
+    private ResultSet query(String query, Object... args) {
         if(this.connection == null) return null;
 
         try {
@@ -100,36 +101,96 @@ public class Database {
         }
     }
 
-    public void update(String query, Object... args) {
-        if(this.connection == null) return;
 
+    public void asyncQuery(final Callback<ResultSet> callback, String query, Object... args) {
+        boolean canContinue = checkConnection();
+        if(!canContinue) return;
+
+        // This creates an async querry with the callback you can run a function after the results.
+        Bukkit.getScheduler().runTaskAsynchronously(CoinAPI.getInstance(), new Runnable() {
+            @Override
+            public void run() {
+
+                try {
+                    PreparedStatement ps = connection.prepareStatement(query);
+                    for (int i = 0; i < args.length; i++) {
+                        ps.setObject(i + 1, args[i]);
+                    }
+                    ResultSet result = ps.executeQuery();
+
+                    if(result.next()) {
+                        callback.onSuccess(result);
+                        return;
+                    }
+                    callback.onDataNotFound();
+                } catch (SQLException ex) {
+                    callback.onException(ex.getCause());
+                    ex.printStackTrace();
+                }
+            }
+        });
+
+    }
+
+    public int update(String query, Object... args) {
         try {
+            boolean canContinue = checkConnection();
+            if(!canContinue) return 0;
             PreparedStatement ps = connection.prepareStatement(query);
             for (int i = 0; i < args.length; i++) {
                 ps.setObject(i + 1, args[i]);
             }
-        } catch (Exception e) {
+            return ps.executeUpdate();
+        } catch (SQLException e) {
             e.printStackTrace();
+            return 0;
         }
     }
-
 
     public void asyncUpdate(String query, Object... args) {
         Bukkit.getScheduler().runTaskAsynchronously(CoinAPI.getInstance(), new Runnable() {
             @Override
             public void run() {
                 try {
-                    PreparedStatement statement = connection.prepareStatement(query);
+                    boolean canContinue = checkConnection();
+                    if(!canContinue) return;
+                    PreparedStatement ps = connection.prepareStatement(query);
                     for (int i = 0; i < args.length; i++) {
-                        statement.setObject(i + 1, args[i]);
+                        ps.setObject(i + 1, args[i]);
                     }
-                    statement.executeUpdate();
-                } catch (Exception e) {
+                    ps.executeUpdate();
+                } catch (SQLException e) {
                     e.printStackTrace();
                 }
             }
         });
     }
+
+    public void playerInDatabase(Callback<ResultSet> callback, Player p, String databaseName) {
+        asyncQuery(callback, "SELECT * FROM " + databaseName + " WHERE UUID=?", p.getUniqueId().toString());
+    }
+
+    /**
+     * reconnect if the sql server died and disconnected
+     */
+
+    public boolean checkConnection() {
+        if(connection == null) {
+            CoinAPI.getInstance().getLogger().warning("Cannot use 'con.isClosed()' in 'checkConnection()' because 'con' is null.");
+            return false;
+        }
+
+        try {
+            if(connection.isClosed()) {
+                connect();
+            }
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
 
 
     public boolean dataExists(String table, String primaryKey, String primaryKeyValue) {
@@ -137,11 +198,7 @@ public class Database {
             PreparedStatement ps = connection.prepareStatement("SELECT * FROM " + table + "WHERE " + primaryKey + "=?");
             ps.setString(1, primaryKeyValue);
             ResultSet results = ps.executeQuery();
-            if(results.next()) {
-                return true;
-            }
-
-            return false;
+            return results.next();
         } catch (Exception ex) {
             return false;
         }

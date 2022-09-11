@@ -1,5 +1,7 @@
-package com.davidout.CoinSystem;
+package com.davidout.CoinSystem.commands;
 
+import com.davidout.CoinSystem.CoinAPI;
+import com.davidout.CoinSystem.utils.Chat;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
@@ -71,6 +73,10 @@ public class CMD implements CommandExecutor, TabCompleter {
             }
 
             int amount = Integer.parseInt(args[2]);
+            if(amount  < 0) {
+                commandSender.sendMessage(Chat.format("&cSorry, but you can't use negative numbers."));
+                return false;
+            }
 
             if(args[0].equalsIgnoreCase("set")) {
                 CoinAPI.setCoins(player.getUniqueId(), amount);
@@ -85,6 +91,11 @@ public class CMD implements CommandExecutor, TabCompleter {
             }
 
             if(args[0].equalsIgnoreCase("remove")) {
+                if(amount > CoinAPI.getCoins(player.getUniqueId())) {
+                    commandSender.sendMessage(Chat.format("&cYou can't remove more coins than the player has."));
+                    return false;
+                }
+
                 CoinAPI.removeCoins(player.getUniqueId(), amount);
                 commandSender.sendMessage(Chat.format("&7Successfully removed &6" + amount + " &7coins from &e" + player.getName() + "&7."));
                 return true;

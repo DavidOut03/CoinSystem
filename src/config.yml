@@ -1,3 +1,6 @@
+
+# Database = database name
+# Host = database ip
 database:
   sql:
     enabled: false

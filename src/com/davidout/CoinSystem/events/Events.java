@@ -1,10 +1,8 @@
-package com.davidout.CoinSystem;
+package com.davidout.CoinSystem.events;
 
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
+import com.davidout.CoinSystem.data.Config;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;

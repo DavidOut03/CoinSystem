@@ -1,4 +1,4 @@
-package com.davidout.CoinSystem;
+package com.davidout.CoinSystem.utils;
 
 import org.bukkit.ChatColor;
 
