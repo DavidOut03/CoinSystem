@@ -83,6 +83,7 @@ public class Config {
                 @Override
                 public void onSuccess(ResultSet result) throws SQLException {
                     CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("UPDATE coins SET COINS=? WHERE UUID=?", CoinAPI.getCoins(uuid), uuid.toString());
+                    CoinAPI.deleteAccount(uuid);
                 }
 
                 @Override
@@ -93,6 +94,7 @@ public class Config {
                 @Override
                 public void onDataNotFound() {
                     CoinAPI.getInstance().getMySQLDatabase().asyncUpdate("INSERT IGNORE INTO coins (UUID,COINS) VALUES (?,?)", uuid.toString(), CoinAPI.getCoins(uuid));
+                    CoinAPI.deleteAccount(uuid);
                 }
             }, "SELECT COINS FROM coins WHERE UUID=?", uuid.toString());
         } else {
